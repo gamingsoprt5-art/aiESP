@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>AI Smart Glasses</title>
+<meta name="theme-color" content="#0B0E14" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">◎</div>
+        <div>
+          <div class="brand-name">AI Smart Glasses</div>
+          <div class="brand-sub" id="deviceLabel">menghubungkan…</div>
+        </div>
+      </div>
+      <div class="status-cluster">
+        <div class="status-pill" id="netStatus"><span class="dot"></span><span>Online</span></div>
+        <div class="status-pill" id="aiStatus"><span class="dot"></span><span id="aiStatusText">Cloud AI</span></div>
+      </div>
+    </header>
+
+    <main class="chat-area" id="chatArea">
+      <div class="empty-hint" id="emptyHint">
+        <div class="emoji">🕶️</div>
+        <h2>Mulai percakapan</h2>
+        <p>Tekan mikrofon untuk bicara, atau ketik pesan di bawah. Berfungsi online maupun offline.</p>
+      </div>
+      <div id="messageList"></div>
+    </main>
+
+    <footer class="composer">
+      <div class="mode-row">
+        <div class="seg" id="outputModeSeg">
+          <button class="seg-btn active" data-mode="voice">🔊 Suara</button>
+          <button class="seg-btn" data-mode="text">📝 Teks</button>
+        </div>
+        <div class="seg" id="aiModeSeg">
+          <button class="seg-btn active" data-ai="auto">Auto</button>
+          <button class="seg-btn" data-ai="online">Online</button>
+          <button class="seg-btn" data-ai="offline">Offline</button>
+        </div>
+      </div>
+      <div class="input-row">
+        <button class="mic-btn" id="micBtn" title="Bicara">🎤</button>
+        <input type="text" id="textInput" placeholder="Ketik pesan…" autocomplete="off" />
+        <button class="send-btn" id="sendBtn" title="Kirim">➤</button>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

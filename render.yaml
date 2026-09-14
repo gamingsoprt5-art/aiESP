@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: ai-smart-glasses
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r server/requirements.txt"
+    startCommand: "uvicorn server.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+
+      # --- Fill these in via the Render dashboard (Environment tab) ---
+      # they are intentionally left out of this file (sync: false = not
+      # stored in git / this blueprint).
+      - key: DATABASE_URL
+        sync: false
+      - key: DEVICE_SIGNING_SECRET
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ZAI_API_KEY
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+
+      # --- Safe defaults, edit if needed ---
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: DISABLE_DEVICE_AUTH
+        value: "false"
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: OPENROUTER_BASE_URL
+        value: https://openrouter.ai/api/v1
+      - key: OPENROUTER_MODEL
+        value: z-ai/glm-5.2:free
+      - key: ZAI_BASE_URL
+        value: https://api.z.ai/api/paas/v4/
+      - key: ZAI_MODEL
+        value: glm-4.5-flash
+      - key: NVIDIA_BASE_URL
+        value: https://integrate.api.nvidia.com/v1
+      - key: NVIDIA_MODEL
+        value: nvidia/nemotron-3.5-lightning-30b-a3b
+      - key: OLLAMA_BASE_URL
+        value: http://127.0.0.1:11434
+      - key: OLLAMA_MODEL
+        value: llama3.2:3b
+      - key: RATE_LIMIT
+        value: 20/minute
+      - key: REQUEST_TIMEOUT_SECONDS
+        value: "30"
