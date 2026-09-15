@@ -37,7 +37,9 @@ async def init_repository() -> Repository:
             "Jalankan: pip install -r requirements.txt"
         ) from exc
 
-    _pg_pool = await asyncpg.create_pool(settings.database_url, min_size=1, max_size=10)
+    _pg_pool = await asyncpg.create_pool(
+    settings.database_url, min_size=1, max_size=10, statement_cache_size=0
+    )
     await _ensure_schema(_pg_pool)
     _repository = PostgresRepository(_pg_pool)
     log.info("Terhubung ke PostgreSQL.")
