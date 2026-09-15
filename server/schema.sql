@@ -28,7 +28,7 @@ create table if not exists messages (
     role text not null check (role in ('user', 'assistant', 'system')),
     content text not null,
     output_mode text not null check (output_mode in ('voice', 'text')),
-    ai_mode text not null check (ai_mode in ('online', 'offline')),
+    ai_mode text not null check (ai_mode in ('online', 'offline', 'auto')),
     provider text not null,
     model text,
     status text not null default 'completed' check (status in ('queued', 'processing', 'completed', 'failed')),
