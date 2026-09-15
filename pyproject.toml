@@ -1,3 +1,9 @@
+# The repo also has an esp32/ folder (C++ firmware, not Python), which
+# confuses setuptools' automatic package discovery ("multiple top-level
+# packages"). Restrict packaging to just the server/ package.
+[tool.setuptools]
+packages = ["server"]
+
 [project]
 name = "ai-smart-glasses"
 version = "1.0.0"
