@@ -1,0 +1,28 @@
+[project]
+name = "ai-smart-glasses"
+version = "1.0.0"
+description = "AI Smart Glasses backend — FastAPI + PostgreSQL, online/offline AI"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "uvicorn[standard]>=0.30.6",
+    "pydantic>=2.12.0",
+    "pydantic-settings>=2.6.0",
+    "asyncpg>=0.31.0",
+    "httpx>=0.27.2",
+    "python-dotenv>=1.0.1",
+    "slowapi>=0.1.9",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+]
+
+[tool.fastapi]
+entrypoint = "server.main:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
