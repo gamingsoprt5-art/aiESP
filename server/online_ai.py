@@ -30,9 +30,9 @@ def strip_reasoning_tags(text: str) -> str:
 
 async def _call_openai_compatible(*, name: str, base_url: str, api_key: str, model: str,
                                    messages: list[dict], output_mode: str) -> AIResult:
-    max_tokens = 220 if output_mode == "voice" else 900
+    max_tokens = 280 if output_mode == "voice" else 1800
     url = base_url.rstrip("/") + "/chat/completions"
-    payload = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.6}
+    payload = {"model": model, "messages": messages, "max_tokens": max_tokens, "temperature": 0.5}
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
     try:
