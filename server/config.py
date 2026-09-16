@@ -44,13 +44,13 @@ class Settings(BaseSettings):
     # --- Online AI fallback chain: Gemini (free search) -> OpenRouter -> Z.ai -> NVIDIA ---
     # llm_provider is kept for logging/reference of the "preferred" one;
     # the chain always tries all configured providers regardless.
-    llm_provider: str = "openrouter"
+    llm_provider: str = "Gemini"
 
     # Gemini uses Google's own free tier with real Google Search grounding
     # (genuinely free, no credit card) — tried first in the chain when configured.
     gemini_api_key: str = ""
     gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
 
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
