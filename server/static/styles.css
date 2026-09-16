@@ -65,6 +65,9 @@ button, input{ font-family: inherit; }
 }
 .msg-row.user .bubble{ background: var(--user-bubble); border-bottom-right-radius:4px; }
 .msg-row.assistant .bubble{ background: var(--assistant-bubble); border: 1px solid var(--line); border-bottom-left-radius:4px; }
+.bubble strong{ font-weight:700; color: var(--ink); }
+.bubble em{ font-style:italic; }
+.bubble code{ font-family: var(--font-mono); background: rgba(255,255,255,.08); padding:1px 5px; border-radius:4px; font-size:.92em; }
 .msg-meta{ font-family: var(--font-mono); font-size:10px; color: var(--ink-soft); margin-top:4px; display:flex; gap:6px; align-items:center; }
 .msg-meta .tag{ padding:1px 6px; border-radius:99px; background: var(--surface-2); }
 .msg-row.user .msg-meta{ justify-content:flex-end; }
