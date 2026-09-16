@@ -440,7 +440,7 @@ const App = {
     const time = new Date(msg.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
     row.innerHTML = `
       <div>
-        <div class="bubble">${escapeHtml(msg.content)}</div>
+        <div class="bubble">${renderMarkdownLite(msg.content)}</div>
         <div class="msg-meta">
           <span>${time}</span>
           ${msg.role === 'assistant' ? `<span class="tag">${msg.ai_mode || ''}</span>` : ''}
@@ -469,6 +469,20 @@ const App = {
 
 function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+
+// Lightweight markdown renderer — no external library, just the handful of
+// things a chat answer realistically needs: **bold**, *italic*, `code`,
+// and "- " bullet lines. Escapes HTML first so this is XSS-safe.
+function renderMarkdownLite(raw) {
+  let html = escapeHtml(raw);
+  html = html.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__([^_\n]+?)__/g, '<strong>$1</strong>');
+  html = html.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
+  html = html.replace(/(?<!_)_([^_\n]+?)_(?!_)/g, '<em>$1</em>');
+  html = html.replace(/`([^`\n]+?)`/g, '<code>$1</code>');
+  html = html.replace(/^[-*] /gm, '• ');
+  return html;
 }
 
 App.init();
