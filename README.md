@@ -146,6 +146,9 @@ The repo already has `pyproject.toml` with an explicit `[tool.fastapi] entrypoin
 - `DISABLE_DEVICE_AUTH` and demo mode (no `DATABASE_URL`) are prototyping conveniences only — the server logs a loud warning on startup when either is active, and both should be off for any real deployment.
 - Never commit a real `.env` file — `.gitignore` already excludes it.
 
+
+Made by Lutfi 
+
 ## License
 
-No license specified yet — add one (e.g. MIT) if you intend to open-source this.
+Not yet
