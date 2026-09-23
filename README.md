@@ -1,138 +1,151 @@
-# AI Smart Glasses — Full Rebuild
+# AI Smart Glasses
 
-Backend FastAPI + PostgreSQL, frontend PWA (IndexedDB, offline-first, online/offline AI sync), dan starting point firmware ESP32 — dibangun ulang sesuai spesifikasi di `ai-smart-glasses-build-prompt.docx`.
+An AI voice/text assistant for smart glasses — FastAPI backend with a multi-provider AI fallback chain, a PostgreSQL-backed offline-first PWA frontend, and a starting-point ESP32 firmware.
 
-## ⚠️ Catatan Penting Sebelum Mulai
+Anonymous per-device authentication, real-time chat, offline sync, and installable web app — no vendor lock-in on the AI provider.
 
-Proyek ini ditulis di lingkungan sandbox **tanpa akses internet** — artinya saya **tidak bisa** menjalankan `pip install`, menyalakan server sungguhan, menyambung ke PostgreSQL/Ollama asli, atau menjalankan `pytest` secara langsung di sini. Yang sudah saya lakukan untuk menjaga kualitas:
+## Features
 
-- Setiap file Python dicek dengan `python3 -m py_compile` (lolos semua — tidak ada *syntax error*).
-- Kode ditulis & ditinjau manual mengikuti dokumentasi resmi FastAPI/asyncpg/Ollama yang saya kuasai.
+- **Multi-provider AI fallback chain** — Gemini (free, real Google Search grounding) → OpenRouter → Z.ai → NVIDIA, tried in order; any provider without a key is skipped, and a failing provider automatically falls through to the next one.
+- **Offline AI** — falls back to a local [Ollama](https://ollama.com) model when there's no internet connection.
+- **Anonymous, per-device auth** — each browser/device gets its own rotatable token; no accounts or passwords.
+- **Offline-first PWA frontend** — IndexedDB storage, service worker, installable, works without a network connection and syncs automatically once back online.
+- **Voice & text modes** — Web Speech API for speech-to-text/text-to-speech in the browser; responses are tuned differently for each mode (short & spoken vs. fuller & formatted).
+- **Lightweight markdown rendering** — bold/italic/inline code render properly in the chat UI instead of showing raw symbols.
+- **PostgreSQL persistence** with an in-memory demo-mode fallback when no database is configured, so the app is still runnable with zero setup.
+- **ESP32 firmware starting point** — Wi-Fi, anonymous device registration, and `/api/chat` calls already wired up.
 
-Yang **belum** bisa saya pastikan karena keterbatasan itu: bug runtime yang hanya muncul saat benar-benar dijalankan (typo nama field, dsb.), kompatibilitas versi package persis, dan perilaku sebenarnya terhadap PostgreSQL/Ollama asli. **Langkah pertama yang wajib kamu lakukan** setelah ekstrak: jalankan `pytest` (lihat di bawah) untuk memverifikasi semuanya benar-benar berfungsi, sebelum deploy ke produksi.
+## Tech Stack
 
-## Struktur Proyek
+| Layer | Stack |
+|---|---|
+| Backend | FastAPI, asyncpg, Pydantic, slowapi (rate limiting) |
+| Database | PostgreSQL (tested with [Supabase](https://supabase.com) and [Neon](https://neon.tech)) |
+| Frontend | Vanilla JS, IndexedDB, Service Worker — no build step, no framework |
+| AI (online) | Gemini, OpenRouter, Z.ai, NVIDIA NIM — any OpenAI-compatible endpoint works |
+| AI (offline) | Ollama |
+| Firmware | ESP32 (Arduino framework, PlatformIO) |
+
+## Project Structure
 
 ```
 ai-smart-glasses/
+├── main.py                  # Root entrypoint re-export (for platforms that auto-detect main.py)
+├── pyproject.toml           # Dependencies + explicit entrypoint for FastAPI Cloud
 ├── server/
-│   ├── main.py              # FastAPI app & semua route
-│   ├── config.py            # Baca konfigurasi dari environment variable
-│   ├── database.py          # Koneksi PostgreSQL + fallback demo mode
-│   ├── schema.sql           # Skema database (auto-dijalankan saat startup)
-│   ├── models.py            # Dataclass untuk Device/Conversation/Message
-│   ├── repositories.py      # Data access layer (Postgres + in-memory)
-│   ├── device_auth.py       # Identitas anonim per-perangkat
-│   ├── ai_router.py         # Memilih & memformat prompt online/offline
-│   ├── online_ai.py         # Provider AI cloud (OpenAI-compatible generic)
-│   ├── local_ai.py          # Provider AI lokal (Ollama)
-│   ├── sync.py              # Logika sinkronisasi push/pull
-│   ├── schemas.py           # Model request/response (Pydantic)
+│   ├── main.py               # FastAPI app & all routes
+│   ├── config.py             # Environment-variable configuration
+│   ├── database.py           # PostgreSQL connection pool + demo-mode fallback
+│   ├── schema.sql            # Database schema (applied automatically on startup)
+│   ├── models.py             # Device / Conversation / Message dataclasses
+│   ├── repositories.py       # Data access layer (Postgres + in-memory)
+│   ├── device_auth.py        # Anonymous per-device identity
+│   ├── ai_router.py          # Prompt construction + online/offline routing
+│   ├── online_ai.py          # Cloud AI provider chain (Gemini + OpenAI-compatible)
+│   ├── local_ai.py           # Local AI provider (Ollama)
+│   ├── sync.py               # Offline push/pull sync logic
+│   ├── schemas.py            # Pydantic request/response models
 │   ├── requirements.txt
-│   └── static/               # Frontend PWA
+│   └── static/                # PWA frontend
 │       ├── index.html
-│       ├── app.js             # IndexedDB, chat, sync, STT/TTS browser
+│       ├── app.js              # IndexedDB, chat, sync, browser STT/TTS
 │       ├── styles.css
-│       ├── sw.js               # Service worker (cache app-shell)
+│       ├── sw.js                # Service worker
 │       └── manifest.json
-├── esp32/                    # Starting point firmware (lihat catatan di bawah)
-├── tests/                    # Test otomatis (pytest)
+├── esp32/                    # Firmware starting point (see below)
+├── tests/                    # pytest suite
 ├── .env.example
-├── .replit / pytest.ini
-└── README.md (file ini)
+└── render.yaml / .replit      # Deployment configs
 ```
 
-## Menjalankan Secara Lokal
+## Getting Started
 
 ```bash
+git clone <your-fork-url>
 cd ai-smart-glasses
-python3 -m venv .venv && source .venv/bin/activate    # atau .venv\Scripts\activate di Windows
+python -m venv .venv && source .venv/bin/activate   # .venv\Scripts\activate on Windows
 pip install -r server/requirements.txt
 cp .env.example .env
-# edit .env — minimal isi LLM_API_KEY jika ingin mode online AI benar-benar menjawab
+# fill in .env — see "AI Providers" below for at least one key
 
-python3 -m uvicorn server.main:app --reload --port 8000
+python -m uvicorn server.main:app --reload --port 8000
 ```
 
-Buka `http://localhost:8000` — itu sudah menyajikan frontend PWA sekaligus API di server yang sama.
+Open `http://localhost:8000` — it serves both the PWA frontend and the API from the same origin.
 
-**Tanpa mengisi `.env` sama sekali**, server tetap bisa dijalankan (mode demo: penyimpanan di memori, hilang saat restart) — cocok untuk uji coba cepat, tapi akan tampil peringatan jelas di log & di `GET /health`.
+The app also runs with **zero configuration**: without any `.env` values it starts in demo mode (in-memory storage, cleared on restart) — useful for a quick look, and it logs a clear warning so you know persistence isn't on.
 
-## Menjalankan Test
+## Running Tests
 
 ```bash
-pip install -r server/requirements.txt   # sudah termasuk pytest
 pytest
 ```
 
-Test-test ini memakai mode demo (in-memory) dan AI provider yang di-stub (tidak memanggil API sungguhan), jadi bisa langsung jalan tanpa database atau API key asli.
+The suite runs against the in-memory demo-mode repository with AI providers stubbed out, so it needs no real database or API keys.
 
-## Database (PostgreSQL)
+## Environment Variables
 
-Pakai layanan gratis seperti [Supabase](https://supabase.com) atau [Neon](https://neon.tech) — salin *connection string*-nya ke `DATABASE_URL` di `.env`. Skema (`server/schema.sql`) otomatis diterapkan saat server pertama kali start, jadi tidak perlu migrasi manual.
+See [`.env.example`](.env.example) for the full list with comments. The essentials:
 
-## AI Online
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string. Empty → in-memory demo mode. |
+| `DEVICE_SIGNING_SECRET` | Keeps device tokens valid across server restarts. |
+| `GEMINI_API_KEY` / `OPENROUTER_API_KEY` / `ZAI_API_KEY` / `NVIDIA_API_KEY` | At least one enables online AI chat. |
+| `OLLAMA_BASE_URL`, `OLLAMA_MODEL` | Local model used for offline mode. |
+| `DISABLE_DEVICE_AUTH` | Prototyping only — disables per-device auth entirely. Never enable in production. |
 
-Memakai **rantai fallback** 3 provider yang kompatibel OpenAI Chat Completions API, dicoba berurutan: **OpenRouter → Z.ai → NVIDIA**. Isi minimal satu `*_API_KEY` di `.env` — provider tanpa key otomatis dilewati, dan kalau satu provider gagal (timeout/rate limit/error), sistem otomatis lanjut ke provider berikutnya sebelum permintaan chat benar-benar dianggap gagal.
+## Database
 
-| Provider | Env var key | Default model |
-|---|---|---|
-| OpenRouter | `OPENROUTER_API_KEY` | `z-ai/glm-5.2:free` |
-| Z.ai | `ZAI_API_KEY` | `glm-4.5-flash` |
-| NVIDIA | `NVIDIA_API_KEY` | `nvidia/nemotron-3.5-lightning-30b-a3b` |
+Any PostgreSQL works; [Supabase](https://supabase.com) and [Neon](https://neon.tech) both have workable free tiers. Copy the connection string into `DATABASE_URL`.
 
-`LLM_PROVIDER` di `.env` hanya label referensi/log — urutan rantai fallback selalu tetap OpenRouter → Z.ai → NVIDIA berapa pun nilainya.
+If your provider connects through a transaction-mode pooler (e.g. Supabase's pooler / PgBouncer), that's already handled — the connection pool is created with `statement_cache_size=0` for compatibility.
 
-## AI Offline (Ollama)
+`server/schema.sql` is applied automatically on startup, so there's no manual migration step for a fresh database.
 
-1. Install [Ollama](https://ollama.com) di perangkat yang sama dengan browser/HP yang dipakai (karena browser memanggil `http://127.0.0.1:11434` langsung).
-2. `ollama pull llama3.2:3b` (atau model lain — sesuaikan `OLLAMA_MODEL` di `.env` dan di `server/static/app.js`, cari `llama3.2:3b`).
-3. Saat koneksi internet mati, aplikasi otomatis mencoba memanggil Ollama lokal, menyimpan hasilnya di IndexedDB, lalu menyinkronkannya ke server begitu online kembali.
+## AI Providers
 
-**Keterbatasan yang jujur perlu disebutkan:** memanggil `127.0.0.1:11434` dari browser hanya berfungsi kalau Ollama berjalan di perangkat yang sama dengan yang membuka halaman ini (mis. laptop membuka `localhost:8000` dan Ollama juga di laptop itu). Untuk kacamata/ESP32 fisik yang tidak menjalankan Ollama sendiri, mode offline butuh strategi lain (mis. hub lokal di jaringan yang sama) — di luar cakupan yang bisa diverifikasi di sandbox ini.
+Online chat tries providers in this fixed order, skipping any without a configured key:
 
-## Deploy ke Replit
+| Order | Provider | Env var | Notes |
+|---|---|---|---|
+| 1 | Gemini | `GEMINI_API_KEY` | Free tier, native Google Search grounding — get a key at [aistudio.google.com](https://aistudio.google.com), no card required. |
+| 2 | OpenRouter | `OPENROUTER_API_KEY` | Any model slug works; free-tier models are supported. |
+| 3 | Z.ai | `ZAI_API_KEY` | |
+| 4 | NVIDIA NIM | `NVIDIA_API_KEY` | |
 
-1. Buat Repl baru, upload isi folder ini (atau import dari GitHub).
-2. Di tab **Secrets**, isi `DATABASE_URL`, `DEVICE_SIGNING_SECRET`, `LLM_API_KEY`, dst. (jangan taruh di `.env` yang ter-commit).
-3. Klik **Run** — `.replit` sudah mengatur perintah start otomatis.
+`LLM_PROVIDER` is just a label used in logs — the fallback order above is always fixed regardless of its value.
 
-## Deploy ke Render.com
+**Offline mode** calls a local [Ollama](https://ollama.com) instance directly from the browser (`http://127.0.0.1:11434`), so it only works when Ollama is running on the same device that has the page open. Messages created offline are queued in IndexedDB and synced to the server automatically once the connection is back.
 
-Render butuh kode kamu ada di repo Git (GitHub/GitLab) — tidak bisa upload zip langsung. Kalau belum punya akun GitHub, buat dulu di [github.com](https://github.com) (gratis).
+## Deployment
 
-1. **Push kode ke GitHub** — di folder proyek, jalankan:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   ```
-   Buat repo baru di GitHub (klik "+" → "New repository", jangan centang "Add README"), lalu jalankan perintah `git remote add origin ...` dan `git push` yang ditampilkan GitHub setelah repo dibuat.
+### FastAPI Cloud (recommended — no credit card)
 
-2. **Buat Blueprint di Render** — login ke [render.com](https://render.com) (bisa langsung pakai akun GitHub, tidak perlu kartu kredit untuk free tier), klik **New +** → **Blueprint**, pilih repo yang baru di-push. Render otomatis membaca `render.yaml` yang sudah ada di proyek ini dan mengisi konfigurasi build/start-nya sendiri.
+```bash
+pip install "fastapi[standard]"
+fastapi login
+fastapi cloud env set --secret DEVICE_SIGNING_SECRET "$(python -c 'import secrets; print(secrets.token_hex(32))')"
+fastapi cloud env set --secret GEMINI_API_KEY "..."
+fastapi deploy
+```
 
-3. **Isi Secrets** — sebelum/sesudah deploy pertama, buka tab **Environment** di service-nya, isi minimal:
-   - `DATABASE_URL` (opsional — kosongkan dulu untuk mode demo, isi nanti kalau sudah bikin database di Supabase/Neon)
-   - `DEVICE_SIGNING_SECRET` (generate: `python -c "import secrets; print(secrets.token_hex(32))"`)
-   - Minimal satu dari `OPENROUTER_API_KEY` / `ZAI_API_KEY` / `NVIDIA_API_KEY`
+The repo already has `pyproject.toml` with an explicit `[tool.fastapi] entrypoint = "server.main:app"` and a root-level `main.py`, so the entrypoint is auto-detected. GitHub integration is also available from the [FastAPI Cloud dashboard](https://dashboard.fastapicloud.com) if you'd rather connect a repo than use the CLI.
 
-4. **Deploy** — klik **Create Blueprint Instance** / **Deploy**. Tunggu build selesai (1-3 menit), lalu Render memberi URL publik seperti `https://ai-smart-glasses.onrender.com` — itu sudah bisa dipakai langsung, termasuk oleh ESP32 (ganti `API_BASE_URL` di `esp32/include/config.h` dengan URL ini).
+### Render.com (alternative)
 
-**Catatan free tier Render:** service otomatis "tidur" setelah 15 menit tidak ada trafik, dan permintaan pertama setelah itu akan lambat (~30-50 detik) sampai dia bangun lagi. Ini normal untuk free tier, bukan bug. Setiap kamu `git push` perubahan baru, Render otomatis re-deploy sendiri.
+`render.yaml` in this repo configures the build/start commands automatically — connect the repo as a Blueprint from the Render dashboard and fill in the secrets. Free tier sleeps after 15 minutes of inactivity (first request after that takes 30-50s to wake up).
 
-## Firmware ESP32
+## Firmware (ESP32)
 
-`esp32/src/main.cpp` adalah **starting point**, bukan implementasi penuh — sudah mencakup koneksi Wi-Fi, registrasi perangkat anonim, dan pemanggilan `/api/chat`. Yang **belum** diimplementasikan (butuh perangkat keras fisik untuk dikembangkan & diuji, di luar cakupan yang bisa dikerjakan tanpa hardware): capture mikrofon (I2S) → speech-to-text, dan text-to-speech → speaker. Komentar di dalam file menjelaskan persis di mana kode ini perlu disambungkan ke driver audio kamu.
+`esp32/src/main.cpp` is a **starting point**, not a full implementation. It already handles Wi-Fi, anonymous device registration, and calling `/api/chat`. Not implemented (hardware-specific, needs physical hardware to build and test): microphone capture (I2S) → speech-to-text, and text-to-speech → speaker output. Comments in the file mark exactly where to wire in your audio driver.
 
-## Bandingkan dengan Proyek Lama (`aismart.zip`)
+## Security Notes
 
-| | Proyek lama | Proyek ini |
-|---|---|---|
-| Identitas perangkat | 1 token global untuk semua | Token unik per perangkat, anonim, bisa dirotasi |
-| Penyimpanan riwayat | Tidak ada | PostgreSQL (dengan fallback demo mode) |
-| Mode offline | Tidak ada | Ollama lokal + sync otomatis saat online kembali |
-| Frontend | HTML statis biasa | PWA (installable, IndexedDB, service worker) |
-| Provider AI | Terkunci ke provider tertentu | Generic OpenAI-compatible via env var |
-| Test otomatis | Tidak ada | `pytest` (auth, chat, sync, idempotency) |
+- Device tokens are stored server-side only as HMAC-SHA256 hashes, never in plaintext.
+- `DISABLE_DEVICE_AUTH` and demo mode (no `DATABASE_URL`) are prototyping conveniences only — the server logs a loud warning on startup when either is active, and both should be off for any real deployment.
+- Never commit a real `.env` file — `.gitignore` already excludes it.
 
-File `.env` lama di `aismart.zip` **tidak disertakan/disalin** ke proyek ini karena berisi kemungkinan API key asli — isi ulang secara manual di `.env` proyek baru ini.
+## License
+
+No license specified yet — add one (e.g. MIT) if you intend to open-source this.
